@@ -1,4 +1,12 @@
-// TwilioMessagingService.java
+package com.omnishelf.omnishelf_engine.service;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
+import com.twilio.exception.ApiException;
+import com.twilio.rest.api.v2010.account.Message;
+import com.twilio.type.PhoneNumber;
+
 @Service
 @Slf4j
 public class TwilioMessagingService {
