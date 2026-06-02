@@ -29,6 +29,7 @@ public class ProductVariant {
 
     private String color;           // "Blue"
     private String size;            // "8" or "128GB"
+    private String storage;         // "128GB" or null
 
     @Column(nullable = false)
     private BigDecimal price;

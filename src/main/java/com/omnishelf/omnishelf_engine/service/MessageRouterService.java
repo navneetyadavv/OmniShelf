@@ -8,28 +8,30 @@ import lombok.extern.slf4j.Slf4j;
 public class MessageRouterService {
 
     private final TwilioMessagingService twilioMessaging;
+    private final NlpOrchestrationService nlpOrchestrationService;
 
-    public MessageRouterService(TwilioMessagingService twilioMessaging) {
+    public MessageRouterService(TwilioMessagingService twilioMessaging,
+                                NlpOrchestrationService nlpOrchestrationService) {
         this.twilioMessaging = twilioMessaging;
+        this.nlpOrchestrationService = nlpOrchestrationService;
     }
 
-    public void route(String phone, String text) {
-        String lower = text.toLowerCase();
+// In MessageRouterService.java — update the route() method
+public void route(String phone, String text) {
+    String lower = text.toLowerCase().trim();
 
-        // Primitive intent detection — Gemini replaces this in Phase 2
-        if (lower.contains("hi") || lower.contains("hello") || lower.contains("start")) {
-            handleGreeting(phone);
-
-        } else if (lower.contains("help")) {
-            handleHelp(phone);
-
-        } else {
-            // Default: echo back so we confirm the pipeline works end-to-end
-            twilioMessaging.send(phone,
-                "Got your message: \"" + text + "\"\n" +
-                "NLP parsing coming in Phase 2!");
-        }
+    if (lower.matches("(hi|hello|start|hey).*")) {
+        handleGreeting(phone);
+    } else if (lower.equals("help")) {
+        handleHelp(phone);
+    } else if (lower.equals("done") || lower.equals("confirm")) {
+        // Phase 3 will handle this fully
+        twilioMessaging.send(phone, "Invoice generation coming in Phase 3!");
+    } else {
+        // Everything else → NLP pipeline
+        nlpOrchestrationService.processOrderMessage(phone, text);
     }
+}
 
     private void handleGreeting(String phone) {
         twilioMessaging.send(phone,
