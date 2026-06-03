@@ -3,35 +3,63 @@ package com.omnishelf.omnishelf_engine.service;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
 
+
 @Service
 @Slf4j
 public class MessageRouterService {
 
     private final TwilioMessagingService twilioMessaging;
-    private final NlpOrchestrationService nlpOrchestrationService;
+    private final NlpOrchestrationService nlpOrchestration;
+    private final SessionManagerService sessionManager;
+
 
     public MessageRouterService(TwilioMessagingService twilioMessaging,
-                                NlpOrchestrationService nlpOrchestrationService) {
-        this.twilioMessaging = twilioMessaging;
-        this.nlpOrchestrationService = nlpOrchestrationService;
-    }
+                             NlpOrchestrationService nlpOrchestration,
+                             SessionManagerService sessionManager) {
+    this.twilioMessaging  = twilioMessaging;
+    this.nlpOrchestration = nlpOrchestration;
+    this.sessionManager   = sessionManager;
+}
 
 // In MessageRouterService.java — update the route() method
 public void route(String phone, String text) {
     String lower = text.toLowerCase().trim();
 
-    if (lower.matches("(hi|hello|start|hey).*")) {
+    if (isGreeting(lower)) {
         handleGreeting(phone);
-    } else if (lower.equals("help")) {
+
+    } else if (lower.equals("help") || lower.equals("?")) {
         handleHelp(phone);
-    } else if (lower.equals("done") || lower.equals("confirm")) {
-        // Phase 3 will handle this fully
-        twilioMessaging.send(phone, "Invoice generation coming in Phase 3!");
+
+    } else if (lower.equals("done") || lower.equals("confirm")
+            || lower.equals("ho gaya") || lower.equals("bas")) {
+        sessionManager.requestConfirmation(phone);   // ← was stub
+
+    } else if (lower.equals("yes") || lower.equals("haan")
+            || lower.equals("ha") || lower.equals("ok")) {
+        sessionManager.handleYesReply(phone);        // ← new
+
+    } else if (lower.equals("no") || lower.equals("nahi")
+            || lower.equals("nope")) {
+        sessionManager.handleNoReply(phone);         // ← new
+
+    } else if (lower.equals("undo") || lower.equals("hatao")
+            || lower.equals("remove last")) {
+        sessionManager.undoLastItem(phone);          // ← was stub
+
+    } else if (lower.equals("cancel") || lower.equals("start over")
+            || lower.equals("reset")) {
+        sessionManager.cancelSession(phone);         // ← was stub
+
     } else {
-        // Everything else → NLP pipeline
-        nlpOrchestrationService.processOrderMessage(phone, text);
+        nlpOrchestration.processOrderMessage(phone, text);
     }
 }
+
+    private boolean isGreeting(String lower) {
+        return lower.contains("hello") || lower.contains("hi") || lower.contains("hey")
+            || lower.contains("namaste") || lower.contains("hi there") || lower.contains("hello there");
+    }
 
     private void handleGreeting(String phone) {
         twilioMessaging.send(phone,

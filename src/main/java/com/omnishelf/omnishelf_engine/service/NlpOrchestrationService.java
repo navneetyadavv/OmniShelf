@@ -12,7 +12,7 @@ import com.omnishelf.omnishelf_engine.repository.ProductRepository;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
+@RequiredArgsConstructor // Lombok automatically builds the constructor with all final fields
 public class NlpOrchestrationService {
 
     private final GeminiService geminiService;
@@ -21,8 +21,7 @@ public class NlpOrchestrationService {
     private final EntityMatcherService entityMatcher;
     private final ProductRepository productRepository;
     private final TwilioMessagingService twilioMessaging;
-
-    // Constructor injection (omitted for brevity — inject all fields)
+    private final SessionManagerService sessionManager; // Added dependency
 
     public void processOrderMessage(String phone, String rawMessage) {
         try {
@@ -55,12 +54,22 @@ public class NlpOrchestrationService {
                 MatchResult result = entityMatcher.matchItem(item);
 
                 switch (result.getStatus()) {
-                    case FOUND -> confirmationLines.add(
-                        String.format("✓ %dx %s — ₹%.0f each",
-                            result.getRequestedQuantity(),
-                            result.getVariant().getSku(),
-                            result.getVariant().getPrice())
-                    );
+                    case FOUND -> {
+                        // Fixed syntax: Separated the string creation and the session manager call
+                        confirmationLines.add(
+                            String.format("✓ %dx %s — ₹%.0f each",
+                                result.getRequestedQuantity(),
+                                result.getVariant().getSku(),
+                                result.getVariant().getPrice())
+                        );
+                        
+                        sessionManager.addItemToSession(
+                            phone,
+                            result.getVariant(),
+                            item.getQuantity(),
+                            parsedOrder.getCustomerName()
+                        );
+                    }
                     case FUZZY_MATCH -> disambiguationLines.add(
                         String.format("Did you mean *%s* for \"%s\"? Reply YES or NO.",
                             result.getSuggestedBrand(),

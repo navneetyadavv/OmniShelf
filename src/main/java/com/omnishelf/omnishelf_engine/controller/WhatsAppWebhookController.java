@@ -36,7 +36,7 @@ public class WhatsAppWebhookController {
         // Hand off to the router — non-blocking, return 200 OK immediately
         messageRouter.route(phone, text);
 
-        // Twilio expects a 200 OK with TwiML or empty body
-        return ResponseEntity.ok("<Response></Response>");
+        // Return a clean empty response so Twilio does not send any extra message.
+        return ResponseEntity.ok().build();
     }
 }
