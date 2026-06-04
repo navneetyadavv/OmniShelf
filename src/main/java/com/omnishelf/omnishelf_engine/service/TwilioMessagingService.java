@@ -15,17 +15,25 @@ public class TwilioMessagingService {
     private String fromNumber;
 
     public void send(String toPhone, String messageBody) {
+        if (fromNumber == null || fromNumber.isBlank()) {
+            log.error("Twilio WhatsApp sender number is not configured");
+            return;
+        }
+
+        String normalizedFrom = fromNumber.startsWith("whatsapp:") ? fromNumber : "whatsapp:" + fromNumber;
+        String normalizedTo = toPhone.startsWith("whatsapp:") ? toPhone : "whatsapp:" + toPhone;
+
         try {
             Message message = Message.creator(
-                    new PhoneNumber("whatsapp:" + toPhone),
-                    new PhoneNumber(fromNumber),
+                    new PhoneNumber(normalizedTo),
+                    new PhoneNumber(normalizedFrom),
                     messageBody
             ).create();
 
             log.info("Message sent. SID: {}", message.getSid());
 
-        } catch (ApiException e) {
-            log.error("Twilio send failed for {}: {}", toPhone, e.getMessage());
+        } catch (Exception e) {
+            log.error("Twilio send failed for {}: {}", toPhone, e.getMessage(), e);
         }
     }
 }
