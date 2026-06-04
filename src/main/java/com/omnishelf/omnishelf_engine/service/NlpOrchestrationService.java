@@ -107,6 +107,9 @@ public class NlpOrchestrationService {
         } catch (InvalidGeminiResponseException e) {
             log.error("Invalid Gemini response for message '{}': {}", rawMessage, e.getMessage());
             twilioMessaging.send(phone, "System error. Please try again in a moment.");
+        } catch (GeminiApiException e) {
+            log.error("Gemini API failure for message '{}': {}", rawMessage, e.getMessage(), e);
+            twilioMessaging.send(phone, "AI service unavailable. Please try again later.");
         } catch (Exception e) {
             log.error("Unexpected error processing message: {}", e.getMessage(), e);
             twilioMessaging.send(phone, "Something went wrong. Please try again!");

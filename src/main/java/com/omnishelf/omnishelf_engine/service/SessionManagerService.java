@@ -24,17 +24,20 @@ public class SessionManagerService {
     private final BillItemRepository    billItemRepo;
     private final ProductVariantRepository variantRepo;
     private final TwilioMessagingService twilioMessaging;
+    private final InvoiceDeliveryService invoiceDelivery;
 
     public SessionManagerService(BillSessionRepository sessionRepo,
                                   BillRepository billRepo,
                                   BillItemRepository billItemRepo,
                                   ProductVariantRepository variantRepo,
-                                  TwilioMessagingService twilioMessaging) {
+                                  TwilioMessagingService twilioMessaging,
+                                  InvoiceDeliveryService invoiceDelivery) {
         this.sessionRepo     = sessionRepo;
         this.billRepo        = billRepo;
         this.billItemRepo    = billItemRepo;
         this.variantRepo     = variantRepo;
         this.twilioMessaging = twilioMessaging;
+        this.invoiceDelivery = invoiceDelivery;
     }
 
     // ── Session retrieval ─────────────────────────────────────────────
@@ -272,7 +275,13 @@ public class SessionManagerService {
                 "Bill *%s* confirmed!\n\nGenerating PDF invoice...",
                 bill.getBillNumber()));
 
-        // Phase 4 will take over here — PDF generation + WhatsApp delivery
+        session.setState(SessionState.CONFIRMED);
+        sessionRepo.save(session);
+
+        log.info("Bill confirmed: {} for {}", bill.getBillNumber(), phone);
+
+        // Deliver invoice — Phase 4 fully live
+        invoiceDelivery.deliverInvoice(bill, phone);
     }
 
     // ── Cancel session ────────────────────────────────────────────────
