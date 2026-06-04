@@ -42,4 +42,10 @@ public class Bill {
 
     @OneToMany(mappedBy = "bill", cascade = CascadeType.ALL)
     private List<BillItem> items = new ArrayList<>();
+
+    @Column
+    private LocalDateTime cancelledAt;
+
+    @Column
+    private String cancelledBy;
 }

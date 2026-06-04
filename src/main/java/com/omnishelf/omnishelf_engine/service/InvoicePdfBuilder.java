@@ -331,4 +331,55 @@ public class InvoicePdfBuilder {
                 .setFont(font).setFontSize(9).setFontColor(color)
                 .setTextAlignment(TextAlignment.RIGHT));
     }
+
+    public byte[] buildCancellationNote(Bill bill) {
+        try {
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            PdfWriter writer    = new PdfWriter(buffer);
+            PdfDocument pdfDoc  = new PdfDocument(writer);
+            Document document   = new Document(pdfDoc, PageSize.A4);
+            document.setMargins(36, 36, 36, 36);
+
+            PdfFont bold    = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
+            PdfFont regular = PdfFontFactory.createFont(StandardFonts.HELVETICA);
+
+            // Reuse all existing section builders
+            addHeader(document, bill, bold, regular);
+            addDivider(document);
+            addCustomerBlock(document, bill, bold, regular);
+            addItemTable(document, bill, bold, regular);
+            addTotalsBlock(document, bill, bold, regular);
+
+            // Cancellation stamp
+            document.add(new Paragraph("\n"));
+            Paragraph stamp = new Paragraph("CANCELLED")
+                .setFont(bold).setFontSize(48)
+                .setFontColor(new DeviceRgb(163, 45, 45))
+                .setTextAlignment(TextAlignment.CENTER)
+                .setOpacity(0.25f);
+            document.add(stamp);
+
+            // Cancellation details
+            document.add(new Paragraph(
+                "Cancelled on: " + bill.getCancelledAt()
+                    .format(DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a")))
+                .setFont(regular).setFontSize(9)
+                .setFontColor(ColorConstants.DARK_GRAY)
+                .setTextAlignment(TextAlignment.CENTER));
+
+            document.add(new Paragraph(
+                "All stock has been restored to inventory.")
+                .setFont(regular).setFontSize(9)
+                .setFontColor(ColorConstants.GRAY)
+                .setTextAlignment(TextAlignment.CENTER));
+
+            addFooter(document, bold, regular);
+            document.close();
+            return buffer.toByteArray();
+
+        } catch (Exception e) {
+            throw new PdfGenerationException(
+                "Failed to generate cancellation note", e);
+        }
+    }
 }

@@ -77,6 +77,32 @@ public class InvoiceDeliveryService {
     }
 
     /**
+     * Generates and delivers a cancellation note PDF.
+     * Reuses the same PDF builder — just stamps "CANCELLED" across it.
+     */
+    public void deliverCancellationNote(Bill bill, String toPhone) {
+        try {
+            byte[] pdfBytes = pdfBuilder.buildCancellationNote(bill);
+            String pdfUrl   = pdfHosting.store(pdfBytes);
+
+            Message.creator(
+                new PhoneNumber("whatsapp:" + toPhone),
+                new PhoneNumber(fromNumber),
+                "Cancellation note for bill *" + bill.getBillNumber() + "*"
+            )
+            .setMediaUrl(List.of(new com.twilio.type.Uri(pdfUrl)))
+            .create();
+
+            log.info("Cancellation note delivered for {}", bill.getBillNumber());
+
+        } catch (Exception e) {
+            log.error("Cancellation note delivery failed: {}", e.getMessage());
+            twilioMessaging.send(toPhone,
+                "Cancellation recorded but PDF failed. " +
+                "Bill *" + bill.getBillNumber() + "* is cancelled in the system.");
+        }
+    }
+    /**
      * Fallback: if PDF fails, send a plain-text invoice summary.
      * The sale is already confirmed — shopkeeper must not lose the bill.
      */

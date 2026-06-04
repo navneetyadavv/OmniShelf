@@ -2,6 +2,7 @@ package com.omnishelf.omnishelf_engine.service;
 
 import com.omnishelf.omnishelf_engine.model.*;
 import com.omnishelf.omnishelf_engine.repository.*;
+import jakarta.annotation.PostConstruct; // Added missing import for @PostConstruct
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -27,17 +28,55 @@ public class SessionManagerService {
     private final InvoiceDeliveryService invoiceDelivery;
 
     public SessionManagerService(BillSessionRepository sessionRepo,
-                                  BillRepository billRepo,
-                                  BillItemRepository billItemRepo,
-                                  ProductVariantRepository variantRepo,
-                                  TwilioMessagingService twilioMessaging,
-                                  InvoiceDeliveryService invoiceDelivery) {
+                                 BillRepository billRepo,
+                                 BillItemRepository billItemRepo,
+                                 ProductVariantRepository variantRepo,
+                                 TwilioMessagingService twilioMessaging,
+                                 InvoiceDeliveryService invoiceDelivery) {
         this.sessionRepo     = sessionRepo;
         this.billRepo        = billRepo;
         this.billItemRepo    = billItemRepo;
         this.variantRepo     = variantRepo;
         this.twilioMessaging = twilioMessaging;
         this.invoiceDelivery = invoiceDelivery;
+    }
+
+    // ── Crash Recovery System ─────────────────────────────────────────
+
+    /**
+     * Runs on every application startup to recover or properly discard
+     * active/awaiting sessions left dangling by a sudden system crash.
+     */
+    @PostConstruct
+    public void recoverInterruptedSessions() {
+        List<BillSession> activeSessions = sessionRepo
+            .findByStateIn(List.of(SessionState.ACTIVE, SessionState.AWAITING_CONFIRMATION));
+
+        if (activeSessions.isEmpty()) return;
+
+        log.info("Crash recovery: found {} interrupted session(s)", activeSessions.size());
+
+        for (BillSession session : activeSessions) {
+            if (session.isExpired()) {
+                expireSession(session);
+                continue;
+            }
+
+            Bill bill = session.getBill();
+            int itemCount = (bill != null && bill.getItems() != null) ? bill.getItems().size() : 0;
+
+            if (itemCount == 0) {
+                // Empty session — nothing to recover
+                expireSession(session);
+                continue;
+            }
+
+            // Restore the session and notify the shopkeeper
+            log.info("Recovered session for {} with {} item(s)", session.getShopkeeperPhone(), itemCount);
+
+            sendCartSummary(session.getShopkeeperPhone(), bill,
+                "System restarted — your cart has been restored!");
+        }
     }
 
     // ── Session retrieval ─────────────────────────────────────────────
@@ -69,7 +108,7 @@ public class SessionManagerService {
      */
     @Transactional
     public void addItemToSession(String phone, ProductVariant variant,
-                                  int quantity, String customerName) {
+                                 int quantity, String customerName) {
 
         BillSession session = getOrCreateSession(phone);
         Bill bill = session.getBill();
@@ -255,8 +294,7 @@ public class SessionManagerService {
             // Deduct stock atomically
             variant.setStockQuantity(variant.getStockQuantity() - item.getQuantity());
             variantRepo.save(variant);
-            log.info("Stock deducted: {} → {} remaining", variant.getSku(),
-                variant.getStockQuantity());
+            log.info("Stock deducted: {} → {} remaining", variant.getSku(), variant.getStockQuantity());
         }
 
         // Finalize bill
@@ -271,14 +309,7 @@ public class SessionManagerService {
         log.info("Bill confirmed: {} for {}", bill.getBillNumber(), phone);
 
         twilioMessaging.send(phone,
-            String.format(
-                "Bill *%s* confirmed!\n\nGenerating PDF invoice...",
-                bill.getBillNumber()));
-
-        session.setState(SessionState.CONFIRMED);
-        sessionRepo.save(session);
-
-        log.info("Bill confirmed: {} for {}", bill.getBillNumber(), phone);
+            String.format("Bill *%s* confirmed!\n\nGenerating PDF invoice...", bill.getBillNumber()));
 
         // Deliver invoice — Phase 4 fully live
         invoiceDelivery.deliverInvoice(bill, phone);
@@ -305,8 +336,7 @@ public class SessionManagerService {
         sessionRepo.save(session);
 
         log.info("Session cancelled for {}", phone);
-        twilioMessaging.send(phone,
-            "Cart cleared. Start fresh by telling me what you sold.");
+        twilioMessaging.send(phone, "Cart cleared. Start fresh by telling me what you sold.");
     }
 
     // ── Handle YES/NO replies (disambiguation + confirmation) ─────────
@@ -319,8 +349,6 @@ public class SessionManagerService {
         if (sessionOpt.isPresent()) {
             confirmBill(phone);
         } else {
-            // YES may also be answering a "Did you mean X?" disambiguation
-            // Phase 2 disambiguation handler picks this up — no action here
             twilioMessaging.send(phone, "Nothing to confirm right now.");
         }
     }
@@ -346,8 +374,7 @@ public class SessionManagerService {
     @Scheduled(fixedDelay = 300_000) // every 5 minutes
     @Transactional
     public void cleanupExpiredSessions() {
-        List<BillSession> expired = sessionRepo
-            .findExpiredSessions(LocalDateTime.now());
+        List<BillSession> expired = sessionRepo.findExpiredSessions(LocalDateTime.now());
 
         for (BillSession session : expired) {
             expireSession(session);
@@ -357,9 +384,8 @@ public class SessionManagerService {
             log.info("Expired {} idle session(s)", expired.size());
         }
 
-        // Hard-delete old closed sessions
-        sessionRepo.deleteOldClosedSessions(
-            LocalDateTime.now().minusHours(24));
+        // Hard-delete old closed sessions (fixed the cut-off method call)
+        sessionRepo.deleteOldClosedSessions(LocalDateTime.now().minusHours(24));
     }
 
     // ── Private helpers ───────────────────────────────────────────────
@@ -423,8 +449,7 @@ public class SessionManagerService {
     }
 
     private String generateBillNumber() {
-        String date = LocalDateTime.now()
-            .format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         long count = billRepo.countByStatus(BillStatus.CONFIRMED) + 1;
         return String.format("BILL-%s-%03d", date, count);
     }
