@@ -1,16 +1,19 @@
-package com.billing.repository;
+package com.omnishelf.engine.repository;
 
-import com.billing.model.ShopUser;
+import com.omnishelf.engine.model.ShopUser;
+import com.omnishelf.engine.model.UserRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-
+import java.util.List;
 import java.util.Optional;
 
 public interface ShopUserRepository extends JpaRepository<ShopUser, String> {
+
     Optional<ShopUser> findByPhone(String phone);
 
-    // Reset daily counters at midnight
+    List<ShopUser> findByRole(UserRole role);
+
     @Modifying
     @Query("UPDATE ShopUser u SET u.billsGeneratedToday = 0, u.verifiedToday = false")
     void resetDailyCounters();

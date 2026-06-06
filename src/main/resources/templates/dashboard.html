@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>OmniShelf Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; color: #1a202c; }
+        .navbar { background: #1e3a8a; color: white; padding: 14px 24px;
+                  display: flex; align-items: center; gap: 12px; }
+        .navbar h1 { font-size: 20px; font-weight: 700; }
+        .navbar span { font-size: 13px; opacity: 0.75; }
+        .container { max-width: 1100px; margin: 32px auto; padding: 0 20px; }
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 32px; }
+        .card { background: white; border-radius: 12px; padding: 22px 24px;
+                box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+        .card .label { font-size: 13px; color: #718096; margin-bottom: 6px; }
+        .card .value { font-size: 30px; font-weight: 700; color: #1e3a8a; }
+        .card .sub   { font-size: 12px; color: #a0aec0; margin-top: 4px; }
+        .section { background: white; border-radius: 12px; padding: 22px 24px;
+                   box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 24px; }
+        .section h2 { font-size: 15px; font-weight: 600; color: #2d3748; margin-bottom: 16px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { text-align: left; padding: 8px 10px; border-bottom: 2px solid #e2e8f0;
+             color: #718096; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+        td { padding: 10px 10px; border-bottom: 1px solid #f7fafc; }
+        tr:last-child td { border-bottom: none; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 20px;
+                 font-size: 11px; font-weight: 600; }
+        .badge-green { background: #c6f6d5; color: #276749; }
+        .badge-red   { background: #fed7d7; color: #9b2c2c; }
+        .badge-blue  { background: #bee3f8; color: #2b6cb0; }
+        .low-stock-warning { color: #c53030; font-weight: 600; }
+        .empty { text-align: center; padding: 24px; color: #a0aec0; font-size: 14px; }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div>
+        <h1>🏪 OmniShelf</h1>
+        <span>AI WhatsApp Billing Dashboard</span>
+    </div>
+</nav>
+
+<div class="container">
+
+    <!-- KPI Cards -->
+    <div class="cards">
+        <div class="card">
+            <div class="label">Today's Revenue</div>
+            <div class="value">₹<span th:text="${#numbers.formatDecimal(todayRevenue,1,'COMMA',2,'POINT')}">0</span></div>
+            <div class="sub">GST-inclusive</div>
+        </div>
+        <div class="card">
+            <div class="label">Bills Today</div>
+            <div class="value" th:text="${todayBills}">0</div>
+            <div class="sub">confirmed invoices</div>
+        </div>
+        <div class="card">
+            <div class="label">Total Bills</div>
+            <div class="value" th:text="${totalBills}">0</div>
+            <div class="sub">all-time confirmed</div>
+        </div>
+        <div class="card">
+            <div class="label">Registered Users</div>
+            <div class="value" th:text="${totalUsers}">0</div>
+            <div class="sub">owners + staff</div>
+        </div>
+        <div class="card">
+            <div class="label">Low Stock Items</div>
+            <div class="value" th:classappend="${#lists.size(lowStockItems) > 0 ? 'low-stock-warning' : ''}"
+                 th:text="${#lists.size(lowStockItems)}">0</div>
+            <div class="sub">≤ 5 units remaining</div>
+        </div>
+    </div>
+
+    <!-- Recent Bills -->
+    <div class="section">
+        <h2>Recent Confirmed Bills</h2>
+        <div th:if="${#lists.isEmpty(recentBills)}" class="empty">No confirmed bills yet.</div>
+        <table th:unless="${#lists.isEmpty(recentBills)}">
+            <thead>
+                <tr>
+                    <th>Invoice No</th>
+                    <th>Customer</th>
+                    <th>Items</th>
+                    <th>Grand Total</th>
+                    <th>GST</th>
+                    <th>Confirmed At</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="bill : ${recentBills}">
+                    <td><strong th:text="${bill.billNumber}">-</strong></td>
+                    <td th:text="${bill.customerName != null ? bill.customerName : '—'}">-</td>
+                    <td th:text="${#lists.size(bill.items)}">0</td>
+                    <td><strong>₹<span th:text="${#numbers.formatDecimal(bill.grandTotal,1,'COMMA',2,'POINT')}">0</span></strong></td>
+                    <td>₹<span th:text="${#numbers.formatDecimal(bill.taxAmount,1,'COMMA',2,'POINT')}">0</span></td>
+                    <td th:text="${bill.confirmedAt != null ? #temporals.format(bill.confirmedAt, 'dd MMM HH:mm') : '—'}">-</td>
+                    <td><span class="badge badge-green" th:text="${bill.status}">CONFIRMED</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Low Stock -->
+    <div class="section" th:unless="${#lists.isEmpty(lowStockItems)}">
+        <h2>⚠ Low Stock Alert</h2>
+        <table>
+            <thead>
+                <tr><th>Brand</th><th>Product</th><th>Variant</th><th>HSN</th><th>Stock</th><th>Price</th></tr>
+            </thead>
+            <tbody>
+                <tr th:each="v : ${lowStockItems}">
+                    <td th:text="${v.product.brand}">-</td>
+                    <td th:text="${v.product.name}">-</td>
+                    <td th:text="${(v.color != null ? v.color + ' ' : '') + (v.size != null ? 'Sz' + v.size + ' ' : '') + (v.storage != null ? v.storage : '')}">-</td>
+                    <td th:text="${v.hsnCode != null ? v.hsnCode : '—'}">-</td>
+                    <td class="low-stock-warning" th:text="${v.stockQuantity}">0</td>
+                    <td>₹<span th:text="${#numbers.formatDecimal(v.price,1,'COMMA',0,'POINT')}">0</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <p style="text-align:center;font-size:12px;color:#a0aec0;margin-top:12px;">
+        OmniShelf AI Billing Engine &mdash; Refresh for latest data
+    </p>
+</div>
+</body>
+</html>

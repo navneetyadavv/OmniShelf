@@ -1,4 +1,4 @@
-package com.omnishelf.omnishelf_engine.dto;
+package com.omnishelf.engine.dto;
 
 import lombok.Data;
 import java.util.List;
@@ -7,8 +7,8 @@ import java.util.List;
 public class ParsedOrder {
     private List<ParsedItem> items;
     private String customerName;
-    private String language;         // EN | HI | HINGLISH
-    private String confidence;       // HIGH | MEDIUM | LOW
-    private String error;            // set if UNPARSEABLE
+    private String language;      // EN | HI | HINGLISH
+    private String confidence;    // HIGH | MEDIUM | LOW
+    private String error;
     private String reason;
 }

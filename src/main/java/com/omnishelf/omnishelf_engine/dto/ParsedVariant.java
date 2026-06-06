@@ -1,4 +1,4 @@
-package com.omnishelf.omnishelf_engine.dto;
+package com.omnishelf.engine.dto;
 
 import lombok.Data;
 

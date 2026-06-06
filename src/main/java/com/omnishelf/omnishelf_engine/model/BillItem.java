@@ -1,13 +1,6 @@
-package com.omnishelf.omnishelf_engine.model;
+package com.omnishelf.engine.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
@@ -26,11 +19,12 @@ public class BillItem {
     @JoinColumn(name = "bill_id", nullable = false)
     private Bill bill;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "variant_id", nullable = false)
     private ProductVariant variant;
 
-    private Integer quantity;
+    private Integer    quantity;
     private BigDecimal unitPrice;
     private BigDecimal lineTotal;
+    private BigDecimal gstAmount;
 }

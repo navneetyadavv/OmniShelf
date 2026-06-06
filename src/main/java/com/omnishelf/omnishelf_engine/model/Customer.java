@@ -6,24 +6,30 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "products")
+@Table(name = "customers")
 @Data
 @NoArgsConstructor
-public class Product {
+public class Customer {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
     @Column(nullable = false)
-    private String brand;
-
-    @Column(nullable = false)
     private String name;
 
+    @Column
+    private String phone;
+
+    @Column
+    private String gstin; // for B2B invoices
+
     @Column(nullable = false)
-    private String category;
+    private int totalBills = 0;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column
+    private LocalDateTime lastPurchaseAt;
 }

@@ -1,14 +1,6 @@
-package com.omnishelf.omnishelf_engine.model;
+package com.omnishelf.engine.model;
 
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
@@ -26,26 +18,42 @@ public class Bill {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    private String billNumber;          // human-readable: BILL-20240115-001
+    @Column(unique = true)
+    private String billNumber;
+
+    // Legacy name field kept for display; FK to Customer for analytics
     private String customerName;
-    private String shopkeeperPhone;     // WhatsApp number that created this bill
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
+    private Customer customer;
+
+    @Column(nullable = false)
+    private String shopkeeperPhone;
 
     @Enumerated(EnumType.STRING)
-    private BillStatus status;          // DRAFT, CONFIRMED, CANCELLED
+    private BillStatus status;
 
-    private BigDecimal totalAmount;
-    private BigDecimal taxAmount;
-    private BigDecimal grandTotal;
+    private BigDecimal subtotal       = BigDecimal.ZERO;
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+    private BigDecimal taxableAmount  = BigDecimal.ZERO;
+    private BigDecimal cgst           = BigDecimal.ZERO;
+    private BigDecimal sgst           = BigDecimal.ZERO;
+    private BigDecimal grandTotal     = BigDecimal.ZERO;
 
-    private LocalDateTime createdAt = LocalDateTime.now();
+    // Kept for backward compat — equals cgst+sgst
+    private BigDecimal taxAmount      = BigDecimal.ZERO;
+    private BigDecimal totalAmount    = BigDecimal.ZERO;
+
+    private LocalDateTime createdAt    = LocalDateTime.now();
     private LocalDateTime confirmedAt;
-
-    @OneToMany(mappedBy = "bill", cascade = CascadeType.ALL)
-    private List<BillItem> items = new ArrayList<>();
-
-    @Column
     private LocalDateTime cancelledAt;
+    private String        cancelledBy;
 
-    @Column
-    private String cancelledBy;
+    // Correlation / trace ID for structured logging
+    @Column(unique = true)
+    private String traceId;
+
+    @OneToMany(mappedBy = "bill", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<BillItem> items = new ArrayList<>();
 }

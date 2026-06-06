@@ -1,7 +1,6 @@
-package com.omnishelf.omnishelf_engine.service;
+package com.omnishelf.engine.exception;
 
 public class InvalidGeminiResponseException extends RuntimeException {
-    public InvalidGeminiResponseException() { super(); }
     public InvalidGeminiResponseException(String message) { super(message); }
     public InvalidGeminiResponseException(String message, Throwable cause) { super(message, cause); }
 }

@@ -1,4 +1,4 @@
-package com.omnishelf.omnishelf_engine.config;
+package com.omnishelf.engine.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

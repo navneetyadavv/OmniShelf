@@ -1,1 +1,2 @@
-org.springframework.context.ApplicationContextInitializer=com.omnishelf.omnishelf_engine.config.DotenvApplicationContextInitializer
+org.springframework.context.ApplicationContextInitializer=\
+  com.omnishelf.engine.config.DotenvApplicationContextInitializer

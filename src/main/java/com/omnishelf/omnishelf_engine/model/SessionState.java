@@ -1,9 +1,3 @@
-// SessionState.java
-package com.omnishelf.omnishelf_engine.model;
+package com.omnishelf.engine.model;
 
-public enum SessionState {
-    ACTIVE,
-    AWAITING_CONFIRMATION,
-    CONFIRMED,
-    CANCELLED
-}
+public enum SessionState { ACTIVE, AWAITING_CONFIRMATION, CONFIRMED, CANCELLED }

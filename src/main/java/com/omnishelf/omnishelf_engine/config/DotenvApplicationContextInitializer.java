@@ -1,8 +1,7 @@
-package com.omnishelf.omnishelf_engine.config;
+package com.omnishelf.engine.config;
 
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.MutablePropertySources;
 
@@ -12,45 +11,31 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class DotenvApplicationContextInitializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
-
-    private static final String DOTENV_FILE = ".env";
-    private static final String PROPERTY_SOURCE_NAME = "dotenvProperties";
+public class DotenvApplicationContextInitializer
+        implements ApplicationContextInitializer<ConfigurableApplicationContext> {
 
     @Override
     public void initialize(ConfigurableApplicationContext applicationContext) {
-        Path dotenvPath = Path.of(DOTENV_FILE);
-        if (!Files.exists(dotenvPath)) {
-            return;
-        }
+        Path dotenvPath = Path.of(".env");
+        if (!Files.exists(dotenvPath)) return;
 
         try {
             Map<String, Object> properties = new LinkedHashMap<>();
             for (String line : Files.readAllLines(dotenvPath)) {
                 String trimmed = line.trim();
-                if (trimmed.isEmpty() || trimmed.startsWith("#")) {
-                    continue;
-                }
-
+                if (trimmed.isEmpty() || trimmed.startsWith("#")) continue;
                 int idx = trimmed.indexOf('=');
-                if (idx <= 0) {
-                    continue;
-                }
-
-                String key = trimmed.substring(0, idx).trim();
+                if (idx <= 0) continue;
+                String key   = trimmed.substring(0, idx).trim();
                 String value = trimmed.substring(idx + 1).trim();
-
                 if ((value.startsWith("\"") && value.endsWith("\"")) ||
-                    (value.startsWith("'") && value.endsWith("'"))) {
+                    (value.startsWith("'")  && value.endsWith("'"))) {
                     value = value.substring(1, value.length() - 1);
                 }
-
                 properties.put(key, value);
             }
-
-            ConfigurableEnvironment environment = applicationContext.getEnvironment();
-            MutablePropertySources sources = environment.getPropertySources();
-            sources.addLast(new MapPropertySource(PROPERTY_SOURCE_NAME, properties));
+            MutablePropertySources sources = applicationContext.getEnvironment().getPropertySources();
+            sources.addLast(new MapPropertySource("dotenvProperties", properties));
         } catch (IOException ex) {
             throw new IllegalStateException("Failed to load .env file", ex);
         }

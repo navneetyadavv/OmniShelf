@@ -1,6 +1,6 @@
-package com.omnishelf.omnishelf_engine.repository;
+package com.omnishelf.engine.repository;
 
-import com.omnishelf.omnishelf_engine.model.BillItem;
+import com.omnishelf.engine.model.BillItem;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface BillItemRepository extends JpaRepository<BillItem, String> {

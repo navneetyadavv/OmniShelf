@@ -1,5 +1,3 @@
-package com.omnishelf.omnishelf_engine.model;
+package com.omnishelf.engine.model;
 
-public enum BillStatus {
-    DRAFT, CONFIRMED, CANCELLED
-}
+public enum BillStatus { DRAFT, CONFIRMED, CANCELLED }

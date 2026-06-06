@@ -1,9 +1,8 @@
-package com.billing.model;
+package com.omnishelf.engine.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -17,25 +16,28 @@ public class AuditLog {
     private String id;
 
     @Column(nullable = false)
-    private String phone;           // who did it
+    private String phone;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private AuditAction action;     // what they did
+    private AuditAction action;
 
     @Column
-    private String detail;          // extra context (bill number, amount, etc.)
+    private String detail;
 
     @Column(nullable = false)
-    private boolean success;        // did it succeed or was it blocked?
+    private boolean success;
 
     @Column
-    private String blockedReason;   // why it was blocked if success=false
+    private String blockedReason;
+
+    // Correlation ID — links this audit entry to its request chain
+    @Column
+    private String traceId;
 
     @Column(nullable = false)
     private LocalDateTime timestamp = LocalDateTime.now();
 
-    // Factory method for clean creation
     public static AuditLog of(String phone, AuditAction action,
                                String detail, boolean success) {
         AuditLog log = new AuditLog();
@@ -46,8 +48,14 @@ public class AuditLog {
         return log;
     }
 
-    public static AuditLog blocked(String phone, AuditAction action,
-                                    String reason) {
+    public static AuditLog of(String phone, AuditAction action,
+                               String detail, boolean success, String traceId) {
+        AuditLog log = of(phone, action, detail, success);
+        log.traceId = traceId;
+        return log;
+    }
+
+    public static AuditLog blocked(String phone, AuditAction action, String reason) {
         AuditLog log = of(phone, action, null, false);
         log.blockedReason = reason;
         return log;

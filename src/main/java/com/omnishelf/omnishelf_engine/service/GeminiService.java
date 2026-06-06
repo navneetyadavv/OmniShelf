@@ -1,16 +1,14 @@
-package com.omnishelf.omnishelf_engine.service;
+package com.omnishelf.engine.service;
 
+import com.omnishelf.engine.exception.GeminiApiException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 @Slf4j
@@ -25,32 +23,40 @@ public class GeminiService {
     @Value("${gemini.endpoint}")
     private String endpoint;
 
+    @Value("${gemini.max-tokens:1024}")
+    private int maxTokens;
+
+    @Value("${gemini.temperature:0.1}")
+    private double temperature;
+
     private final RestTemplate restTemplate = new RestTemplate();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // Daily token usage counter for cost monitoring
+    private final AtomicLong dailyTokensUsed = new AtomicLong(0);
+    private volatile long tokenResetDay = System.currentTimeMillis() / 86_400_000;
 
     public String callGemini(String prompt) {
+        resetTokenCounterIfNewDay();
+
         String url = endpoint + "/" + model + ":generateContent?key=" + apiKey;
 
         Map<String, Object> requestBody = Map.of(
-            "contents", List.of(
-                Map.of("parts", List.of(
-                    Map.of("text", prompt)
-                ))
-            ),
+            "contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))),
             "generationConfig", Map.of(
-                "temperature", 0.1,       // low temperature = deterministic, less creative
-                "maxOutputTokens", 1024
+                "temperature",     temperature,
+                "maxOutputTokens", maxTokens
             )
         );
 
         try {
-            ResponseEntity<Map> response = restTemplate.postForEntity(
-                url,
-                new HttpEntity<>(requestBody, jsonHeaders()),
-                Map.class
-            );
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
 
-            return extractTextFromGeminiResponse(response.getBody());
+            @SuppressWarnings("unchecked")
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                url, new HttpEntity<>(requestBody, headers), Map.class);
+
+            return extractText(response.getBody());
 
         } catch (Exception e) {
             log.error("Gemini API call failed: {}", e.getMessage());
@@ -58,22 +64,40 @@ public class GeminiService {
         }
     }
 
-    private String extractTextFromGeminiResponse(Map<?, ?> responseBody) {
+    @SuppressWarnings("unchecked")
+    private String extractText(Map<?, ?> body) {
         try {
-            var candidates = (List<?>) responseBody.get("candidates");
-            var first = (Map<?, ?>) candidates.get(0);
-            var content = (Map<?, ?>) first.get("content");
-            var parts = (List<?>) content.get("parts");
-            var part = (Map<?, ?>) parts.get(0);
+            // Log token usage if available
+            if (body.containsKey("usageMetadata")) {
+                Map<?, ?> usage = (Map<?, ?>) body.get("usageMetadata");
+                Object total = usage.get("totalTokenCount");
+                if (total instanceof Number n) {
+                    long used = dailyTokensUsed.addAndGet(n.longValue());
+                    log.debug("Gemini tokens — request: {}, daily total: {}", n, used);
+                    if (used > 50_000) {
+                        log.warn("High Gemini token usage today: {} tokens", used);
+                    }
+                }
+            }
+
+            var candidates = (List<?>) body.get("candidates");
+            var first      = (Map<?, ?>) candidates.get(0);
+            var content    = (Map<?, ?>) first.get("content");
+            var parts      = (List<?>) content.get("parts");
+            var part       = (Map<?, ?>) parts.get(0);
             return (String) part.get("text");
+
         } catch (Exception e) {
             throw new GeminiApiException("Could not parse Gemini response structure", e);
         }
     }
 
-    private HttpHeaders jsonHeaders() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        return headers;
+    private void resetTokenCounterIfNewDay() {
+        long today = System.currentTimeMillis() / 86_400_000;
+        if (today > tokenResetDay) {
+            tokenResetDay = today;
+            dailyTokensUsed.set(0);
+            log.info("Gemini daily token counter reset");
+        }
     }
 }

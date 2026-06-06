@@ -1,11 +1,13 @@
-package com.omnishelf.omnishelf_engine.config;
+package com.omnishelf.engine.config;
 
+import com.twilio.Twilio;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
-import jakarta.annotation.PostConstruct;
-import com.twilio.Twilio;
 
 @Configuration
+@Slf4j
 public class TwilioConfig {
 
     @Value("${twilio.account-sid}")
@@ -16,6 +18,11 @@ public class TwilioConfig {
 
     @PostConstruct
     public void initTwilio() {
+        if (accountSid == null || accountSid.startsWith("AC") && accountSid.length() < 10) {
+            log.warn("Twilio credentials appear to be stubs — messaging will be disabled");
+            return;
+        }
         Twilio.init(accountSid, authToken);
+        log.info("Twilio initialized successfully");
     }
 }
